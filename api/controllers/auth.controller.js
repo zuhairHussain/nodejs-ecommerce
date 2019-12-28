@@ -1,28 +1,36 @@
 var jwt = require("jsonwebtoken");
 var bcrypt = require("bcryptjs");
-var config = require("../config");
+var config = require("../../config");
+var common = require("../../common/common");
 
 const User = require("../models/user.model");
 
 exports.user_create = function (req, res, next) {
   if (req.body.email && req.body.username && req.body.password) {
     var hashedPassword = bcrypt.hashSync(req.body.password, 8);
-
     var user = new User({
       email: req.body.email,
       username: req.body.username,
       password: hashedPassword
     });
-    //use schema.create to insert data into the db
+
     user.save(function (err, user) {
       if (err) {
-        return next(err);
+        res.status(500).send({ error: "something went wrong please try again! " + err });
       } else {
-        // create a token
         var token = jwt.sign({ id: user._id }, config.secret, {
           expiresIn: 86400 // expires in 24 hours
         });
-        res.status(200).send({ auth: true, token: token });
+
+        common.sentMailVerificationLink({ email: req.body.email }, token).then(function (error, response) {
+          if (error) {
+            res.status(500).send({ error: "something went wrong please try again! " + error });
+          } else {
+            res.status(200).send({ message: "Please verify your email by clicking on the verification link sent on you email." });
+          }
+        });
+
+        // res.status(200).send({ auth: true, token: token });
       }
     });
   } else {

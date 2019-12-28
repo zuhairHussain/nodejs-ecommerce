@@ -1,9 +1,9 @@
 const express = require("express");
 const router = express.Router();
-var VerifyToken = require("../auth/VerifyToken");
+var VerifyToken = require("../common/VerifyToken");
 
-const product_controller = require("../controllers/product.controller");
-const auth_controller = require("../controllers/auth.controller");
+const product_controller = require("../api/controllers/product.controller");
+const auth_controller = require("../api/controllers/auth.controller");
 
 router.post("/product/create", VerifyToken, product_controller.product_create);
 router.post("/product/update", VerifyToken, product_controller.product_update);

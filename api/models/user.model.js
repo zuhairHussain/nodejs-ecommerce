@@ -17,7 +17,11 @@ let UserSchema = new Schema({
   password: {
     type: String,
     required: true
-  }
+  },
+  isVerified: {
+    type: Boolean,
+    default: false
+  },
 });
 
 // Export the model
