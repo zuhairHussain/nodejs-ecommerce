@@ -22,9 +22,15 @@ if (process.env.NODE_ENV === 'production') {
 }
 let smtpTransport = nodemailer.createTransport(mailConfig);
 
-exports.sentMailVerificationLink = function (user, token) {
+exports.sentMailVerificationLink = function (user) {
     var from = config.email + " Team<" + config.email + ">";
-    var mailbody = "<p>Thanks for Registering on " + config.email + " </p><p>Please verify your email by clicking on the verification link below.<br/><a href='http://localhost:3000/api/v1/verify-email?id=" + token + "'>Verification Link</a></p>"
+    var mailbody = "<p>Thanks for Registering on " + config.email + " </p><p>Please verify your email by clicking on the verification link below.<br/><a href='http://localhost:3000/api/v1/verify-email?id=" + user.id + "'>Verification Link</a></p>"
+    return mail(from, user.email, "Account Verification", mailbody);
+};
+
+exports.passwordResetLink = function (user) {
+    var from = config.email + " Team<" + config.email + ">";
+    var mailbody = "<p>To reset your password click on the link <br/><a href='http://localhost:3000/reset-password?id=" + user.id + "'>Password Reset Link</a>"
     return mail(from, user.email, "Account Verification", mailbody);
 };
 
