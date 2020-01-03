@@ -24,14 +24,18 @@ exports.user_create = function (req, res, next) {
           });
 
           user.save(function (err, user) {
+            var token = jwt.sign({ id: user._id }, config.secret, {
+              expiresIn: 86400 // expires in 24 hours
+            });
+
             if (err) {
               res.status(500).send({ error: "Account not created please try again! " + err });
             } else {
-              common.sentMailVerificationLink({ email: req.body.email, id: user._id }).then(function (response, error) {
+              common.sentMailVerificationLink({ email: req.body.email, token: token }).then(function (response, error) {
                 if (error) {
                   res.status(500).send({ error: "something went wrong please try again! " + error });
                 } else {
-                  res.status(200).send({ message: `Verification email Sent to ${req.body.email}` });
+                  res.status(200).send({ message: `Verification email Sent to ${req.body.email}. This token will expire after 24 hours.` });
                 }
               });
             }
@@ -44,38 +48,52 @@ exports.user_create = function (req, res, next) {
 };
 
 exports.verify_email = function (req, res, next) {
-  User.findOneAndUpdate(
-    { _id: req.query.id },
-    { $set: { isVerified: true } },
-    { new: true }
-  ).then(doc => {
-    if (doc) {
-      res.redirect("/login");
-    } else {
-      res.status(404).send("<h1>Bad Request</h1>");
-    }
+  const { token } = req.query;
+  if (!token)
+    return res.status(401).send({ auth: false, message: "No token provided." });
+
+  jwt.verify(token, config.secret, function (err, decoded) {
+    if (err)
+      return res
+        .status(500)
+        .send({ auth: false, message: "Failed to authenticate." });
+
+    User.findOneAndUpdate(
+      { _id: decoded.id },
+      { $set: { isVerified: true } },
+      { new: true }
+    ).then(doc => {
+      if (doc) {
+        res.redirect("/login?message=Email verified successfully!");
+      } else {
+        res.status(401).redirect("/login?message=Email is not verified!");
+      }
+    });
   });
+
+
 };
 
 exports.user_login = function (req, res, next) {
   if (req.body.email && req.body.password) {
     User.findOne({ email: req.body.email }, function (err, user) {
-      if (err) return res.status(500).send({ error: "Error on the server." });
-      if (!user) return res.status(200).send({ error: "No user found." });
-      if (!user.isVerified) return res.status(401).send({ error: "User is not verified!" });
+      if (err) return res.status(500).send({ auth: false, error: "Error on the server." });
+      if (!user) return res.status(401).send({ auth: false, error: "Invalid email or password!" });
+      if (!user.isVerified) return res.status(401).send({ auth: false, error: "User is not verified!" });
       var passwordIsValid = bcrypt.compareSync(
         req.body.password,
         user.password
       );
       if (!passwordIsValid)
-        return res.status(401).send({ auth: false, token: null });
+        return res.status(401).send({ auth: false, error: "Invalid email or password!" });
       var token = jwt.sign({ id: user._id }, config.secret, {
         expiresIn: 86400 // expires in 24 hours
       });
-      res.status(200).send({ auth: true, token: token });
+      console.log(user);
+      res.status(200).send({ auth: true, token: token, user: { username: user.username, email: user.email } });
     });
   } else {
-    res.status(500).send("Invalid Information");
+    res.status(401).send({ auth: false, error: "Email and Password are required!" });
   }
 };
 
@@ -95,7 +113,8 @@ exports.me = function (req, res, next) {
         return res.status(500).send("There was a problem finding the user.");
       if (!user) return res.status(404).send("No user found.");
 
-      res.status(200).send(user);
+      res.status(200).send({ auth: true, user });
+
     });
   });
 };
@@ -108,7 +127,10 @@ exports.reset_password_request = function (req, res, next) {
     })
       .then(doc => {
         if (doc) {
-          common.passwordResetLink({ email: doc.email, id: doc._id }).then(function (response, error) {
+          var token = jwt.sign({ id: doc._id }, config.secret, {
+            expiresIn: 86400 // expires in 24 hours
+          });
+          common.passwordResetLink({ email: doc.email, token: token }).then(function (response, error) {
             if (error) {
               res.status(500).send({ error: "something went wrong please try again! " + error });
             } else {
@@ -125,11 +147,22 @@ exports.reset_password_request = function (req, res, next) {
 };
 
 exports.reset_password = function (req, res, next) {
-  const { id, newPassword } = req.body;
-  if (id && newPassword) {
+
+  const { token, newPassword } = req.body;
+  if (!token)
+    return res.status(401).send({ auth: false, message: "No token provided." });
+  if (!newPassword)
+    return res.status(401).send({ auth: false, message: "No password provided." });
+
+  jwt.verify(token, config.secret, function (err, decoded) {
+    if (err)
+      return res
+        .status(500)
+        .send({ auth: false, message: "Failed to authenticate." });
+
     var hashedPassword = bcrypt.hashSync(newPassword, 8);
     User.findOneAndUpdate(
-      { _id: id },
+      { _id: decoded.id },
       { $set: { password: hashedPassword } },
       { new: true }
     ).then(doc => {
@@ -139,5 +172,6 @@ exports.reset_password = function (req, res, next) {
         res.status(200).send({ error: "User not found!" });
       }
     });
-  }
+
+  });
 };

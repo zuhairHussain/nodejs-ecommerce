@@ -1,25 +1,24 @@
-import React from "react";
-import ReactDOM from "react-dom";
-import { BrowserRouter, Route, Switch, Redirect } from "react-router-dom";
-import Login from "../src/components/auth/login";
-import Fulllayout from "./layouts/fulllayout.jsx";
-
-import "./assets/scss/style.css";
-
-let auth = false;
+import 'core-js/es/map';
+import 'core-js/es/set';
+import 'raf/polyfill';
+import React from 'react';
+import ReactDOM from 'react-dom';
+import { Provider } from 'react-redux';
+import store from './store/store'
+import App from './views/App';
+import * as serviceWorker from './serviceWorker';
+import './assets/scss/App.scss';
+import $ from 'jquery';
+import 'bootstrap/dist/js/bootstrap.bundle';
 
 ReactDOM.render(
-  <BrowserRouter>
-    <Switch>
-      {auth ? (
-        <Route path="/" key="Starter" component={Fulllayout} />
-      ) : (
-        <React.Fragment>
-          <Route path="/login" key="login" component={Login} />
-          <Redirect to="login" key="loginRedirect" component={Login} />
-        </React.Fragment>
-      )}
-    </Switch>
-  </BrowserRouter>,
-  document.getElementById("root")
+    <Provider store={store}>
+        <App />
+    </Provider>,
+    document.getElementById('root')
 );
+
+// If you want your app to work offline and load faster, you can change
+// unregister() to register() below. Note this comes with some pitfalls.
+// Learn more about service workers: https://bit.ly/CRA-PWA
+serviceWorker.unregister();
